@@ -1,0 +1,5 @@
+metodo,testes,validos,validade_pct,tempo_medio,diversidade_pct,novos_pct,solucao_media
+DFS,50,50,100.0,0.0003757280041463673,100.0,98.0,41.36
+Aleatorio restrito,50,50,100.0,0.009168674009852112,100.0,100.0,22.9
+MiniGPT livre,50,0,0.0,0.11375717800343409,,,
+MiniGPT restrito,50,50,100.0,0.1271319399937056,100.0,100.0,35.92

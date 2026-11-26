@@ -1,4 +1,4 @@
-# Labirintos Infinitos — v02_testes
+# Labirintos Infinitos — v03
 # Conversão do notebook para Python com células do VS Code.
 
 # %% Célula 1
@@ -710,3 +710,100 @@ with open(
     ], arquivo, indent=2)
 
 print("Resultados salvos com sucesso!")
+
+# %% Célula 14
+# Avaliação complementar — mesmos candidatos, estratégias diferentes
+import time
+import hashlib
+import pandas as pd
+
+@torch.inference_mode()
+def gerar_comparacao(metodo, entrada, rng):
+    if metodo == "DFS":
+        saida = rng.randrange(10)
+        grid = gerar_chunk_10x10(entrada, saida, rng)
+    elif metodo == "MiniGPT restrito":
+        grid, saida, _ = gerar_chunk_ia(model, entrada, max_tentativas=1)
+    else:
+        prefix = []
+        for _ in range(100):
+            if metodo == "Aleatorio restrito":
+                allowed = candidatos(prefix, entrada)
+                if not allowed:
+                    raise RuntimeError("Sem candidato")
+                token = rng.choice(allowed)
+            else:
+                idx = torch.tensor([[COND_OFFSET+entrada]+prefix], device=device)
+                token = torch.multinomial(F.softmax(model(idx)[0,-1], dim=-1), 1).item()
+            prefix.append(token)
+        grid = np.array(prefix).reshape(10,10)
+        exits = [r for r in range(10) if grid[r,9] & E]
+        saida = exits[0] if len(exits)==1 else None
+    return grid, saida
+
+def chave_topologia(grid):
+    g = grid.copy(); g[:,0] &= ~W; g[:,9] &= ~E
+    return hashlib.sha256(g.astype(np.uint8).tobytes()).hexdigest()
+
+def comprimento_solucao(grid, entrada, saida):
+    q = deque([(entrada,0,0)])
+    vistos = {(entrada,0)}
+    while q:
+        r,c,d = q.popleft()
+        if (r,c)==(saida,9): return d
+        for bit,dr,dc in DIRS:
+            nr,nc = r+dr,c+dc
+            if grid[r,c]&bit and 0<=nr<10 and 0<=nc<10 and (nr,nc) not in vistos:
+                vistos.add((nr,nc)); q.append((nr,nc,d+1))
+
+# %% Célula 15
+# Mesmo conjunto de entradas e uma tentativa por método
+N_COMPARACAO = 50
+entradas = [i%10 for i in range(N_COMPARACAO)]
+chaves_treino = {chave_topologia(np.array(c['grid']).reshape(10,10)) for c in chunks[:n_train]}
+registros_comparacao = []
+amostras_invalidas = []
+model.eval()
+for metodo in ["DFS", "Aleatorio restrito", "MiniGPT livre", "MiniGPT restrito"]:
+    rng = random.Random(SEED)
+    torch.manual_seed(SEED)
+    for i, entrada in enumerate(entradas):
+        inicio = time.perf_counter()
+        grid = None; saida = None; erro = None
+        try:
+            grid, saida = gerar_comparacao(metodo, entrada, rng)
+            valido = saida is not None and caminho_valido(grid, entrada, saida)
+            if not valido: erro = "Falha na validacao estrutural"
+        except RuntimeError as exc:
+            valido = False; erro = str(exc)
+        tempo = time.perf_counter() - inicio
+        chave = chave_topologia(grid) if valido else None
+        registros_comparacao.append(dict(metodo=metodo, teste=i+1, entrada=entrada, saida=saida,
+            valido=valido, segundos=tempo, topologia=chave,
+            presente_treino=chave in chaves_treino if valido else None,
+            solucao=comprimento_solucao(grid,entrada,saida) if valido else None, erro=erro))
+        if not valido and sum(a['metodo']==metodo for a in amostras_invalidas)<3:
+            amostras_invalidas.append(dict(metodo=metodo, entrada=entrada, saida=saida, erro=erro,
+                grid=grid.tolist() if grid is not None else None))
+    print(metodo, "finalizado")
+df_comparacao = pd.DataFrame(registros_comparacao)
+
+# %% Célula 16
+# Resumo e evidências da comparação
+linhas = []
+for metodo, grupo in df_comparacao.groupby('metodo', sort=False):
+    ok = grupo[grupo.valido]
+    linhas.append(dict(metodo=metodo, testes=len(grupo), validos=len(ok),
+        validade_pct=100*len(ok)/len(grupo), tempo_medio=grupo.segundos.mean(),
+        diversidade_pct=100*ok.topologia.nunique()/len(ok) if len(ok) else None,
+        novos_pct=100*(1-ok.presente_treino.astype(bool).mean()) if len(ok) else None,
+        solucao_media=ok.solucao.mean() if len(ok) else None))
+tabela_comparacao = pd.DataFrame(linhas)
+print(tabela_comparacao.to_string(index=False))
+tabela_comparacao.set_index('metodo').validade_pct.plot.bar(rot=20, ylim=(0,105), ylabel='Validade (%)')
+plt.tight_layout(); plt.show()
+os.makedirs('reports', exist_ok=True)
+df_comparacao.to_csv('reports/comparacao_detalhada.csv', index=False)
+tabela_comparacao.to_csv('reports/comparacao_resumo.csv', index=False)
+with open('reports/erros_comparacao.json','w') as f: json.dump(amostras_invalidas,f,indent=2)
+print('Relatórios da comparação salvos.')
