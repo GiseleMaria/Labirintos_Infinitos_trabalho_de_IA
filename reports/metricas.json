@@ -6,8 +6,8 @@
     "chunks_unicos": 100,
     "diversidade": 100.0,
     "media_tentativas": 1.0,
-    "tempo_medio_segundos": 0.1337803089991212,
-    "tempo_total_segundos": 13.391186500084586,
+    "tempo_medio_segundos": 0.1394857200072147,
+    "tempo_total_segundos": 13.961011199979112,
     "conexoes_corretas": 99,
     "total_conexoes": 99,
     "avaliacao_modelo": {

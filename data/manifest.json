@@ -1,0 +1,27 @@
+{
+  "origem": "Sintetico - DFS proprio",
+  "seed": 42,
+  "grade": [
+    10,
+    10
+  ],
+  "raw": 1500,
+  "processed": 1500,
+  "invalidos": 0,
+  "duplicados": 0,
+  "splits": {
+    "train": 1200,
+    "val": 150,
+    "test": 150
+  },
+  "vocabulario": 26,
+  "tokens_por_chunk": 101,
+  "parquet": true,
+  "sha256": {
+    "data\\curated\\test.jsonl": "e48f9260c2a0b8dc051c5d3d5656a04ea92893bc070f910be3b9d3bfb39e9e4c",
+    "data\\curated\\train.jsonl": "feebd701cf159c6573d9c2a1164acf813fed449f32fb9cf76376db26b1f62046",
+    "data\\curated\\val.jsonl": "0c53ed52bea4287220695220d2dd7dbbefffba245d97abe62857f6213db3aa78",
+    "data\\processed\\mazes.jsonl": "af8554b15fcba5e26c41808571339a2851861ab08beb5acfaed3c81a988fef09",
+    "data\\raw\\mazes.jsonl": "bfd2c18f5b7b774041758776e4d0e3f7a7e4c7eba5dedfda401ce6dea85b2d78"
+  }
+}

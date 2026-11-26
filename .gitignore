@@ -2,22 +2,25 @@
 .venv/
 venv/
 
-# Cache do Python
+# Python
 __pycache__/
 *.pyc
 
-# Jupyter
+# Jupyter e VS Code
 .ipynb_checkpoints/
-
-# Editor
 .vscode/
 
 # Variaveis de ambiente
 .env
 
-# Pesos do modelo
+# Pesos treinados
 *.pt
 *.pth
 
-# Dataset gerado
+# Dataset antigo
 perfect_mazes.jsonl
+
+# Dados gerados pelo pipeline
+data/raw/
+data/processed/
+data/curated/
