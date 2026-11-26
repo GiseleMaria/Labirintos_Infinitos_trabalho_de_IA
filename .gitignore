@@ -1,0 +1,23 @@
+# Ambiente virtual
+.venv/
+venv/
+
+# Arquivos temporarios do Python
+__pycache__/
+*.pyc
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Variaveis de ambiente
+.env
+
+# Editor
+.vscode/
+
+# Pesos treinados
+*.pt
+*.pth
+
+# Arquivos temporarios
+*.tmp
