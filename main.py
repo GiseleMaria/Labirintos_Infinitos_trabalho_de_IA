@@ -1,4 +1,4 @@
-# Labirintos Infinitos — v01
+# Labirintos Infinitos — v02
 # Conversão do notebook para Python com células do VS Code.
 
 # %% Célula 1
@@ -54,49 +54,61 @@ def gerar_chunk_10x10(in_row: int, out_row: int, rng: random.Random) -> np.ndarr
         else:
             stack.pop()
 
-    # Abre algumas conexões extras para formar ciclos/múltiplos caminhos (multicursal)
-    for _ in range(18):
-        r = rng.randrange(rows)
-        c = rng.randrange(cols)
-        bit, dr, dc = rng.choice(DIRS)
-        nr, nc = r + dr, c + dc
-        if 0 <= nr < rows and 0 <= nc < cols:
-            grid[r, c] |= bit
-            grid[nr, nc] |= OPP[bit]
-
     # Marca abertura externa de entrada (Oeste na linha in_row) e saída (Leste na linha out_row)
     grid[in_row, 0] |= W
     grid[out_row, cols - 1] |= E
     return grid
 
-def caminho_valido(grid: np.ndarray, in_row: int, out_row: int) -> bool:
-    rows, cols = grid.shape
-    if not (grid[in_row, 0] & W) or not (grid[out_row, cols - 1] & E):
+def caminho_valido(grid, in_row, out_row):
+    if grid.shape != (10, 10) or not (0 <= in_row < 10 and 0 <= out_row < 10):
         return False
-    q = deque([(in_row, 0)])
-    vist = {(in_row, 0)}
+    if not np.issubdtype(grid.dtype, np.integer) or np.any((grid < 1) | (grid > 15)):
+        return False
+    edges = 0
+    branches = 0
+    dead_ends = 0
+    for r in range(10):
+        for c in range(10):
+            degree = 0
+            for bit, dr, dc in DIRS:
+                nr, nc = r+dr, c+dc
+                opened = bool(grid[r,c] & bit)
+                if 0 <= nr < 10 and 0 <= nc < 10:
+                    if opened != bool(grid[nr,nc] & OPP[bit]):
+                        return False
+                    degree += int(opened)
+                elif opened != ((bit == W and r == in_row) or (bit == E and r == out_row)):
+                    return False
+            edges += degree
+            branches += degree >= 3
+            dead_ends += degree == 1 and (r,c) not in [(in_row,0),(out_row,9)]
+    if edges != 198 or branches < 2 or dead_ends < 1:
+        return False
+    seen = {(in_row,0)}
+    q = deque(seen)
     while q:
-        r, c = q.popleft()
-        if (r, c) == (out_row, cols - 1):
-            return True
-        for bit, dr, dc in DIRS:
-            if grid[r, c] & bit:
-                nr, nc = r + dr, c + dc
-                if 0 <= nr < rows and 0 <= nc < cols and (nr, nc) not in vist:
-                    vist.add((nr, nc))
-                    q.append((nr, nc))
-    return False
+        r,c = q.popleft()
+        for bit,dr,dc in DIRS:
+            nr,nc = r+dr,c+dc
+            if grid[r,c] & bit and 0 <= nr < 10 and 0 <= nc < 10 and (nr,nc) not in seen:
+                seen.add((nr,nc)); q.append((nr,nc))
+    return len(seen) == 100
 
 rng = random.Random(SEED)
 chunks = []
-for _ in range(1500):  # comece com ~1.500 no Colab e escale para 10.000+ no pipeline local
-    in_r = rng.randrange(10)
-    out_r = rng.randrange(10)
+seen_grids = set()
+while len(chunks) < 1500:
+    in_r, out_r = rng.randrange(10), rng.randrange(10)
     g = gerar_chunk_10x10(in_r, out_r, rng)
-    if caminho_valido(g, in_r, out_r):
-        chunks.append({"in_row": in_r, "out_row": out_r, "grid": g.flatten().tolist()})
-
-print("Chunks válidos gerados:", len(chunks))
+    # Deduplicar topologia interna, independentemente das aberturas externas.
+    internal = g.copy(); internal[:,0] &= ~W; internal[:,9] &= ~E
+    key = tuple(internal.flatten())
+    if key not in seen_grids and caminho_valido(g,in_r,out_r):
+        seen_grids.add(key)
+        chunks.append({'in_row':in_r,'out_row':out_r,'grid':g.flatten().tolist()})
+with open('perfect_mazes.jsonl','w',encoding='utf-8') as f:
+    for item in chunks: f.write(json.dumps(item)+'\n')
+print('Chunks válidos:',len(chunks))
 
 # %% Célula 3
 # Célula 3 — Vocabulário de tokens, split (treino/val/teste) e batches
@@ -119,7 +131,7 @@ val_seqs = torch.tensor(seqs[n_train:n_train + n_val], dtype=torch.long)
 test_seqs = torch.tensor(seqs[n_train + n_val:], dtype=torch.long)
 
 def get_batch(split: str, batch_size: int = 32):
-    src = train_seqs if split == "train" else val_seqs
+    src = {"train": train_seqs, "val": val_seqs, "test": test_seqs}[split]
     idx = torch.randint(0, len(src), (batch_size,))
     batch = src[idx]
     X = batch[:, :-1].to(device)  # shape (B, 100)
@@ -241,40 +253,66 @@ for step in range(1, max_steps + 1):
         print(f"step {step:4d} | train_loss {loss.item():.4f} | val_loss {val_loss:.4f}")
         if val_loss < best_val:
             best_val = val_loss
-            torch.save({"model_state": model.state_dict(), "best_val": best_val}, "best_maze_gpt.pt")
+            torch.save({"model_state": model.state_dict(), "best_val": best_val}, "best_perfect_maze_gpt.pt")
 
 print("Melhor val_loss:", round(best_val, 4))
 
 # %% Célula 6
-# Célula 6 — Geração autoregressiva de um chunk 10x10 conectado ao chunk anterior
+# Célula 6 — Inferência neural com restrições de árvore
+# Cada candidato é avaliado sem alterar os tokens já gerados.
+def candidatos(prefix, in_row):
+    i = len(prefix); r,c = divmod(i,10)
+    used_exit = any(v & E for j,v in enumerate(prefix) if j%10 == 9)
+    result = []
+    for v in range(1,16):
+        if bool(v & N) != (r > 0 and bool(prefix[i-10] & S)): continue
+        if bool(v & W) != (bool(prefix[i-1] & E) if c else r == in_row): continue
+        if r == 9 and v & S: continue
+        if c == 9 and ((used_exit and v & E) or (r == 9 and not used_exit and not v & E)): continue
+        # União de componentes incluindo as células futuras que já possuem uma conexão.
+        parent = list(range(100)); active = set(range(i+1)); cycle = False
+        def root(a):
+            while parent[a] != a:
+                a = parent[a]
+            return a
+        for j,t in enumerate(prefix+[v]):
+            for bit,k,allowed in [(E,j+1,j%10<9),(S,j+10,j//10<9)]:
+                if allowed and t & bit:
+                    active.add(k); a,b = root(j),root(k)
+                    if a == b: cycle = True; break
+                    parent[a] = b
+            if cycle: break
+        if cycle: continue
+        roots = {root(j) for j in active}
+        frontier = {root(j) for j in active if j>i}
+        # Um componente não pode ficar isolado das células ainda não geradas.
+        if i < 99 and (roots-frontier): continue
+        if i == 99 and len(roots)!=1: continue
+        result.append(v)
+    return result
+
 @torch.inference_mode()
-def gerar_chunk_ia(model, in_row: int, out_row: int, max_tentativas: int = 50):
+def gerar_chunk_ia(model, in_row, max_tentativas=50, temperature=1.0):
+    if not 0 <= in_row < 10 or temperature <= 0: raise ValueError('Entrada ou temperatura inválida')
     model.eval()
-    for _ in range(max_tentativas):
-        idx = torch.tensor([[COND_OFFSET + in_row]], dtype=torch.long, device=device)
-        # Gera exatamente 100 células (10x10)
+    for tentativa in range(1,max_tentativas+1):
+        prefix=[]
         for _ in range(100):
-            logits = model(idx[:, -model.max_T :])
-            probs = F.softmax(logits[:, -1, :16], dim=-1)  # restringe a bitmasks 0..15
-            next_tok = torch.multinomial(probs, num_samples=1)
-            idx = torch.cat([idx, next_tok], dim=1)
+            allowed=candidatos(prefix,in_row)
+            if not allowed: break
+            idx=torch.tensor([[COND_OFFSET+in_row]+prefix],dtype=torch.long,device=device)
+            logits=model(idx)[0,-1,allowed]/temperature
+            token=allowed[torch.multinomial(F.softmax(logits,dim=-1),1).item()]
+            prefix.append(token)
+        if len(prefix)!=100: continue
+        grid=np.array(prefix,dtype=np.int64).reshape(10,10)
+        exits=[r for r in range(10) if grid[r,9]&E]
+        if len(exits)==1 and caminho_valido(grid,in_row,exits[0]):
+            return grid,exits[0],tentativa
+    raise RuntimeError('Nenhum chunk válido no limite de tentativas; mapa não alterado.')
 
-        grid = idx[0, 1:].cpu().numpy().reshape(10, 10)
-        # Garante abertura na saída solicitada para encadear o próximo chunk
-        grid[in_row, 0] |= W
-        grid[out_row, 9] |= E
-        if caminho_valido(grid, in_row, out_row):
-            return grid, True
-    return grid, False
-
-ckpt = torch.load("best_maze_gpt.pt", map_location=device)
-model.load_state_dict(ckpt["model_state"])
-
-# Exemplo de encadeamento: Chunk A sai na linha 4 -> Chunk B entra na linha 4 e sai na linha 7
-chunk_a, ok_a = gerar_chunk_ia(model, in_row=2, out_row=4)
-chunk_b, ok_b = gerar_chunk_ia(model, in_row=4, out_row=7)
-print("Chunk A válido:", ok_a, "| shape:", chunk_a.shape)
-print("Chunk B válido:", ok_b, "| entrada == saída A:", bool(chunk_b[4, 0] & W) and bool(chunk_a[4, 9] & E))
+ckpt=torch.load('best_perfect_maze_gpt.pt',map_location=device)
+model.load_state_dict(ckpt['model_state'])
 
 # %% Célula 7
 import matplotlib.pyplot as plt
@@ -336,16 +374,79 @@ def desenhar_chunks(chunks_lista, in_rows, out_rows, titulo="Labirinto (chunks 1
     plt.show()
 
 
-# Gera 3 chunks conectados: A (2 -> 4), B (4 -> 7), C (7 -> 3)
-conexoes = [(4, 5), (5, 9), (9, 9)]
-chunks_gerados = []
-in_lista, out_lista = [], []
+# A saída prevista pela IA define automaticamente a próxima entrada.
+chunks_gerados=[]; in_lista=[]; out_lista=[]
+def expandir():
+    entrada=out_lista[-1] if out_lista else 4
+    grid,saida,tentativas=gerar_chunk_ia(model,entrada)
+    chunks_gerados.append(grid); in_lista.append(entrada); out_lista.append(saida)
+    print(f'Chunk {len(chunks_gerados)}: {entrada} -> {saida} | tentativas: {tentativas}')
+for _ in range(3):
+    try: expandir()
+    except RuntimeError as exc:
+        print(exc); break
+if chunks_gerados:
+    desenhar_chunks(chunks_gerados,in_lista,out_lista,titulo='Labirintos Infinitos')
+# Para continuar, execute expandir() e desenhar_chunks(...) em outra célula.
 
-for r_in, r_out in conexoes:
-    ch, ok = gerar_chunk_ia(model, in_row=r_in, out_row=r_out)
-    chunks_gerados.append(ch)
-    in_lista.append(r_in)
-    out_lista.append(r_out)
-    print(f"Chunk ({r_in} -> {r_out}) | válido: {ok}")
+# %% Célula 8
+# Inicializa as listas apenas se ainda não existirem
+if "chunks_gerados" not in globals():
+    chunks_gerados = []
 
-desenhar_chunks(chunks_gerados, in_lista, out_lista, titulo="Mapa contínuo: 3 chunks (30x10)")
+if "in_lista" not in globals():
+    in_lista = []
+
+if "out_lista" not in globals():
+    out_lista = []
+
+
+def expandir():
+    # Utiliza a saída anterior como próxima entrada
+    entrada = out_lista[-1] if out_lista else 4
+
+    # Gera um novo chunk utilizando a IA
+    try:
+        grid, saida, tentativas = gerar_chunk_ia(
+            model,
+            entrada
+        )
+
+    except RuntimeError as erro:
+        print(f"Falha na geração: {erro}")
+        return False
+
+    # Armazena o novo chunk válido
+    chunks_gerados.append(grid)
+    in_lista.append(entrada)
+    out_lista.append(saida)
+
+    print(f"Chunk {len(chunks_gerados)} gerado!")
+    print(f"Entrada: {entrada}")
+    print(f"Saída: {saida}")
+    print(f"Tentativas: {tentativas}")
+    print("Labirinto válido: True")
+
+    return True
+
+# %% Célula 9
+expandir()
+
+desenhar_chunks(
+    chunks_gerados,
+    in_lista,
+    out_lista,
+    titulo="Labirintos Infinitos"
+)
+
+# %% Célula 10
+
+expandir()
+
+if chunks_gerados:
+    desenhar_chunks(
+        chunks_gerados,
+        in_lista,
+        out_lista,
+        titulo="Labirintos Infinitos"
+    )
