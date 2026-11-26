@@ -1,0 +1,20 @@
+{
+    "total_testes": 100,
+    "chunks_validos": 100,
+    "falhas": 0,
+    "taxa_sucesso": 100.0,
+    "chunks_unicos": 100,
+    "diversidade": 100.0,
+    "media_tentativas": 1.0,
+    "tempo_medio_segundos": 0.13136118099908345,
+    "tempo_total_segundos": 13.148264300078154,
+    "conexoes_corretas": 99,
+    "total_conexoes": 99,
+    "avaliacao_modelo": {
+        "test_loss": 0.8093345133463542,
+        "perplexidade": 2.2464125315706127,
+        "accuracy_percentual": 65.06,
+        "labirintos_avaliados": 150,
+        "tokens_avaliados": 15000
+    }
+}

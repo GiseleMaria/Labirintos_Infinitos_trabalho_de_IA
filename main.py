@@ -1,4 +1,4 @@
-# Labirintos Infinitos — v02
+# Labirintos Infinitos — v02_testes
 # Conversão do notebook para Python com células do VS Code.
 
 # %% Célula 1
@@ -390,63 +390,323 @@ if chunks_gerados:
 # Para continuar, execute expandir() e desenhar_chunks(...) em outra célula.
 
 # %% Célula 8
-# Inicializa as listas apenas se ainda não existirem
-if "chunks_gerados" not in globals():
-    chunks_gerados = []
+import math
 
-if "in_lista" not in globals():
-    in_lista = []
+@torch.inference_mode()
+def avaliar_teste(model, batch_size=32):
+    model.eval()
 
-if "out_lista" not in globals():
-    out_lista = []
+    loss_total = 0
+    acertos = 0
+    total_tokens = 0
+
+    for inicio in range(0, len(test_seqs), batch_size):
+
+        batch = torch.as_tensor(
+            test_seqs[inicio:inicio + batch_size],
+            dtype=torch.long,
+            device=device
+        )
+
+        X = batch[:, :-1]
+        Y = batch[:, 1:]
+
+        logits = model(X)
+
+        loss = F.cross_entropy(
+            logits.reshape(-1, VOCAB_SIZE),
+            Y.reshape(-1),
+            reduction="sum"
+        )
+
+        loss_total += loss.item()
+
+        previsoes = logits.argmax(dim=-1)
+
+        acertos += (previsoes == Y).sum().item()
+
+        total_tokens += Y.numel()
+
+    loss_media = loss_total / total_tokens
+    perplexidade = math.exp(loss_media)
+    accuracy = acertos / total_tokens * 100
+
+    resultados = {
+        "test_loss": loss_media,
+        "perplexidade": perplexidade,
+        "accuracy_percentual": accuracy,
+        "labirintos_avaliados": len(test_seqs),
+        "tokens_avaliados": total_tokens
+    }
+
+    for chave, valor in resultados.items():
+        print(f"{chave}: {valor:.4f}")
+
+    return resultados
 
 
-def expandir():
-    # Utiliza a saída anterior como próxima entrada
-    entrada = out_lista[-1] if out_lista else 4
+resultados_teste = avaliar_teste(model)
 
-    # Gera um novo chunk utilizando a IA
+# %% Célula 9
+import time
+import pandas as pd
+import hashlib
+
+QUANTIDADE_TESTES = 100
+
+chunks_teste = []
+entradas_teste = []
+saidas_teste = []
+
+registros = []
+
+entrada = 4
+
+tempo_inicio = time.perf_counter()
+
+for i in range(QUANTIDADE_TESTES):
+
+    inicio = time.perf_counter()
+
     try:
         grid, saida, tentativas = gerar_chunk_ia(
             model,
-            entrada
+            entrada,
+            max_tentativas=50,
+            temperature=1.0
         )
 
+        valido = caminho_valido(
+            grid,
+            entrada,
+            saida
+        )
+
+        if not valido:
+            raise RuntimeError("Chunk estruturalmente inválido")
+
+        identificador = hashlib.sha256(
+            np.asarray(grid, dtype=np.uint8).tobytes()
+        ).hexdigest()
+
+        tempo = time.perf_counter() - inicio
+
+        registros.append({
+            "teste": i + 1,
+            "entrada": entrada,
+            "saida": saida,
+            "valido": True,
+            "tentativas": tentativas,
+            "tempo_segundos": tempo,
+            "hash": identificador,
+            "erro": None
+        })
+
+        chunks_teste.append(grid.copy())
+        entradas_teste.append(entrada)
+        saidas_teste.append(saida)
+
+        print(
+            f"Teste {i + 1}/{QUANTIDADE_TESTES} | "
+            f"{entrada} -> {saida} | "
+            f"Tentativas: {tentativas} | "
+            f"Tempo: {tempo:.2f}s | VÁLIDO"
+        )
+
+        # Saída anterior torna-se a entrada seguinte
+        entrada = saida
+
     except RuntimeError as erro:
-        print(f"Falha na geração: {erro}")
-        return False
 
-    # Armazena o novo chunk válido
-    chunks_gerados.append(grid)
-    in_lista.append(entrada)
-    out_lista.append(saida)
+        registros.append({
+            "teste": i + 1,
+            "entrada": entrada,
+            "saida": None,
+            "valido": False,
+            "tentativas": None,
+            "tempo_segundos": time.perf_counter() - inicio,
+            "hash": None,
+            "erro": str(erro)
+        })
 
-    print(f"Chunk {len(chunks_gerados)} gerado!")
-    print(f"Entrada: {entrada}")
-    print(f"Saída: {saida}")
-    print(f"Tentativas: {tentativas}")
-    print("Labirinto válido: True")
+        print(f"Teste {i + 1}: FALHOU - {erro}")
 
-    return True
+tempo_total = time.perf_counter() - tempo_inicio
 
-# %% Célula 9
-expandir()
+df_testes = pd.DataFrame(registros)
 
-desenhar_chunks(
-    chunks_gerados,
-    in_lista,
-    out_lista,
-    titulo="Labirintos Infinitos"
-)
+print("\nTestes finalizados!")
+print(f"Tempo total: {tempo_total:.2f} segundos")
 
 # %% Célula 10
+total = len(df_testes)
 
-expandir()
+validos = df_testes[df_testes["valido"]]
 
-if chunks_gerados:
-    desenhar_chunks(
-        chunks_gerados,
-        in_lista,
-        out_lista,
-        titulo="Labirintos Infinitos"
+sucessos = len(validos)
+falhas = total - sucessos
+
+taxa_sucesso = sucessos / total * 100
+
+unicos = validos["hash"].nunique()
+
+diversidade = (
+    unicos / sucessos * 100
+    if sucessos else 0
+)
+
+tentativas_medias = validos["tentativas"].mean()
+
+tempo_medio = df_testes["tempo_segundos"].mean()
+
+conexoes_corretas = sum(
+    saidas_teste[i] == entradas_teste[i + 1]
+    for i in range(len(chunks_teste) - 1)
+)
+
+total_conexoes = max(0, len(chunks_teste) - 1)
+
+print("=" * 50)
+print("LABIRINTOS INFINITOS — RESULTADOS")
+print("=" * 50)
+
+print(f"Total de testes: {total}")
+print(f"Chunks válidos: {sucessos}")
+print(f"Falhas: {falhas}")
+print(f"Taxa de sucesso: {taxa_sucesso:.2f}%")
+print(f"Chunks únicos: {unicos}")
+print(f"Diversidade: {diversidade:.2f}%")
+print(f"Média de tentativas: {tentativas_medias:.2f}")
+print(f"Tempo médio por solicitação: {tempo_medio:.2f}s")
+
+print(
+    f"Conexões corretas: "
+    f"{conexoes_corretas}/{total_conexoes}"
+)
+
+print(f"Células válidas geradas: {sucessos * 100}")
+print(f"Tempo total: {tempo_total:.2f}s")
+
+# %% Célula 11
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(6, 4))
+plt.bar(
+    ["Válidos", "Falhas"],
+    [sucessos, falhas],
+    color=["seagreen", "tomato"]
+)
+plt.title("Validade dos labirintos gerados")
+plt.ylabel("Quantidade")
+plt.show()
+
+
+if not validos.empty:
+    plt.figure(figsize=(10, 4))
+    plt.plot(
+        validos["teste"],
+        validos["tentativas"],
+        marker="o"
     )
+    plt.title("Tentativas para gerar cada chunk válido")
+    plt.xlabel("Teste")
+    plt.ylabel("Tentativas")
+    plt.grid(alpha=0.3)
+    plt.show()
+
+
+plt.figure(figsize=(10, 4))
+plt.plot(
+    df_testes["teste"],
+    df_testes["tempo_segundos"],
+    marker="o"
+)
+plt.title("Tempo de geração por solicitação")
+plt.xlabel("Teste")
+plt.ylabel("Segundos")
+plt.grid(alpha=0.3)
+plt.show()
+
+
+plt.figure(figsize=(6, 4))
+plt.bar(
+    ["Únicos", "Repetidos"],
+    [unicos, sucessos - unicos]
+)
+plt.title("Diversidade dos chunks")
+plt.ylabel("Quantidade")
+plt.show()
+
+# %% Célula 12
+quantidade_visualizar = min(7, len(chunks_teste))
+
+if quantidade_visualizar > 0:
+
+    desenhar_chunks(
+        chunks_teste[:quantidade_visualizar],
+        entradas_teste[:quantidade_visualizar],
+        saidas_teste[:quantidade_visualizar],
+        titulo="Labirintos Infinitos — Teste de expansão"
+    )
+
+else:
+    print("Nenhum chunk válido foi gerado.")
+
+# %% Célula 13
+import json
+import os
+
+os.makedirs("reports", exist_ok=True)
+
+df_testes.to_csv(
+    "reports/testes_geracao.csv",
+    index=False
+)
+
+resumo = {
+    "total_testes": total,
+    "chunks_validos": sucessos,
+    "falhas": falhas,
+    "taxa_sucesso": taxa_sucesso,
+    "chunks_unicos": unicos,
+    "diversidade": diversidade,
+    "media_tentativas": (
+        float(tentativas_medias) if sucessos else None
+    ),
+    "tempo_medio_segundos": float(tempo_medio),
+    "tempo_total_segundos": tempo_total,
+    "conexoes_corretas": conexoes_corretas,
+    "total_conexoes": total_conexoes,
+    "avaliacao_modelo": resultados_teste
+}
+
+with open(
+    "reports/metricas.json",
+    "w",
+    encoding="utf-8"
+) as arquivo:
+
+    json.dump(
+        resumo,
+        arquivo,
+        indent=4,
+        ensure_ascii=False
+    )
+
+with open(
+    "reports/chunks_gerados.json",
+    "w",
+    encoding="utf-8"
+) as arquivo:
+
+    json.dump([
+        {
+            "id": i + 1,
+            "entrada": entradas_teste[i],
+            "saida": saidas_teste[i],
+            "grid": grid.flatten().tolist()
+        }
+        for i, grid in enumerate(chunks_teste)
+    ], arquivo, indent=2)
+
+print("Resultados salvos com sucesso!")

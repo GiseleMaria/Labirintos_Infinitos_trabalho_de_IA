@@ -2,22 +2,22 @@
 .venv/
 venv/
 
-# Arquivos temporarios do Python
+# Cache do Python
 __pycache__/
 *.pyc
 
 # Jupyter
 .ipynb_checkpoints/
 
-# Variaveis de ambiente
-.env
-
 # Editor
 .vscode/
 
-# Pesos treinados
+# Variaveis de ambiente
+.env
+
+# Pesos do modelo
 *.pt
 *.pth
 
-# Arquivos temporarios
-*.tmp
+# Dataset gerado
+perfect_mazes.jsonl
