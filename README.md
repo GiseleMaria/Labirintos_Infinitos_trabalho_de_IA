@@ -16,7 +16,31 @@ O primeiro build pode demorar. Não é necessário instalar Python no Windows. S
 
 ### Obter os pesos e dados
 
-Os pesos e datasets não estão diretamente no GitHub. Se recebeu o backup da equipe, copie `models/`, `data/`, `reports/` e, opcionalmente, `mlflow-data/` e `.dvc/cache/` para a pasta correspondente. Não substitua pesos já treinados sem backup. Se recebeu o cache DVC correspondente ao commit, `docker compose run --rm projeto dvc checkout` pode restaurar suas saídas. Não há remoto DVC configurado por padrão.
+#### Download do modelo treinado e dos datasets
+
+Para executar o projeto sem precisar treinar novamente a rede neural, baixe o pacote disponibilizado na [Release v1.0.0](https://github.com/GiseleMaria/Labirintos_Infinitos_trabalho_de_IA/releases/tag/v1.0.0).
+
+Na seção **Assets**, baixe o arquivo `Labirintos_Infinitos_Pesos_e_Dados_v1.0.0.zip`.
+
+Extraia seu conteúdo na raiz do projeto, preservando as pastas `models/` e `data/`.
+
+Também é possível realizar o download e a extração pelo PowerShell, estando na raiz do repositório clonado:
+
+```powershell
+Invoke-WebRequest -Uri "https://github.com/GiseleMaria/Labirintos_Infinitos_trabalho_de_IA/releases/download/v1.0.0/Labirintos_Infinitos_Pesos_e_Dados_v1.0.0.zip" -OutFile "pesos_e_dados.zip"
+
+Expand-Archive -Path "pesos_e_dados.zip" -DestinationPath "." -Force
+
+Remove-Item "pesos_e_dados.zip"
+```
+
+Utilize esses comandos em uma instalação nova. Caso já possua modelos treinados, faça um backup antes da extração.
+
+Após a extração, confira se o arquivo `models/best.pt` existe.
+
+Com esses arquivos disponíveis, pule a etapa de treinamento e prossiga diretamente para a abertura da aplicação.
+
+O pacote contém o checkpoint selecionado e os datasets. Os demais checkpoints, o cache completo do DVC e o histórico local do MLflow não estão incluídos.
 
 Se não recebeu os pesos, reproduza o treinamento do zero:
 
@@ -30,13 +54,13 @@ Caso esteja usando uma cópia sem `.dvc/`, execute primeiro `docker compose run 
 ### Abrir a aplicação
 
 ```powershell
-docker compose up -d api interface
+docker compose up -d --build api interface
 docker compose ps
 ```
 
 - Interface: http://localhost:8501
 - API Swagger: http://localhost:8000/docs
-- MLflow: http://localhost:5000 (selecione Model training)
+- MLflow: http://localhost:5000 (selecione Labirintos Infinitos)
 
 Na interface, escolha a entrada (0 a 9), quantidade e temperatura. Clique em Gerar novo labirinto e depois Expandir labirinto. O mapa permanece na sessão do navegador e pode ser exportado em JSON. O limite de 50 chunks por mapa protege os recursos da demonstração; o algoritmo não depende de um tamanho global fixo. Não é um serviço de produção.
 
@@ -99,6 +123,65 @@ docker compose run --rm projeto python main.py comparar --quantidade 50
 ```
 
 Os testes HTTP simulados isolam o contrato da API; há também um teste com checkpoint real (ignorado se o arquivo não existir). A avaliação mede perda, perplexidade, acurácia de tokens e geração; a comparação inclui DFS, aleatório restrito, MiniGPT livre e MiniGPT restrito. Consulte os valores reais nos relatórios `reports/metricas.json` e `reports/comparacao_resumo.csv`. Faça backup dos relatórios antes de executar novamente. As métricas podem variar. A imagem de geração fica em `reports/geracao.png`.
+
+### Resultados experimentais — v1.0.0
+
+#### Avaliação do modelo
+
+| Métrica | Resultado |
+|---|---:|
+| Validation Loss | 0,804223 |
+| Test Loss | 0,806214 |
+| Perplexidade | 2,239413 |
+| Acurácia de tokens | 64,85% |
+| Labirintos avaliados no conjunto de teste | 150 |
+| Tokens avaliados | 15.000 |
+
+#### Avaliação da geração incremental
+
+| Métrica | Resultado |
+|---|---:|
+| Chunks gerados | 100 |
+| Chunks válidos | 100 |
+| Falhas | 0 |
+| Taxa de validade | 100% |
+| Chunks únicos | 100 |
+| Diversidade | 100% |
+| Conexões corretas | 99/99 |
+| Média de tentativas | 1,0 |
+| Tempo médio por chunk | 0,12436 s |
+| Tempo total | 12,44275 s |
+
+#### Comparação entre métodos
+
+| Método | Válidos | Validade | Tempo médio (ms) | Diversidade | Novidade | Solução média |
+|---|---:|---:|---:|---:|---:|---:|
+| DFS | 50/50 | 100% | 0,42 | 100% | 98% | 41,36 |
+| Aleatório restrito | 50/50 | 100% | 16,33 | 100% | 100% | 22,90 |
+| MiniGPT livre | 0/50 | 0% | 98,82 | — | — | — |
+| MiniGPT restrito | 50/50 | 100% | 120,70 | 100% | 100% | 32,80 |
+
+Os resultados demonstram que a combinação da rede neural com restrições estruturais permite gerar labirintos válidos, diversos e conectados incrementalmente nas amostras avaliadas.
+
+O DFS apresentou menor tempo de execução. O objetivo do MiniGPT não é substituir esse algoritmo em desempenho, mas investigar a geração de labirintos por meio de um modelo neural treinado do zero.
+
+#### Testes automatizados
+
+- 6 testes executados.
+- 6 testes aprovados.
+- 0 falhas.
+- 1 aviso de descontinuação relacionado à integração entre Starlette e HTTPX.
+- Teste de inferência com checkpoint real aprovado.
+
+Os relatórios dos testes estão disponíveis em `reports/testes_automatizados.txt` e `reports/testes_automatizados.xml`.
+
+#### Verificação do pipeline DVC
+
+A execução de `dvc status` confirmou que os dados e o pipeline estavam atualizados:
+
+```text
+Data and pipelines are up to date.
+```
 
 ## 6. Estrutura e evolução
 
