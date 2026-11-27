@@ -1,16 +1,20 @@
-# Labirintos Infinitos — v0.4
-
-Continuação da v0.3: mesmo DFS, tokens e MiniGPT, separados em módulos. Dataset sintético gerado localmente em batch (não é uma coleção de imagens). RAW registra candidatos; PROCESSED valida e deduplica topologias; CURATED guarda tokens e split 80/10/10. O Parquet contém metadados, o JSONL contém grades e tokens. A ordem e seed anteriores são preservadas para reutilizar o checkpoint.
-
-## Executar no Windows (PowerShell)
-
-```powershell
-py -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe main.py dados
+# Versão v0.5
+Docker CPU (Python 3.12 dentro do container).
 ```
-
-Copie `best_perfect_maze_gpt.pt` para `models/best.pt` ou use `--checkpoint caminho.pt`. Se não possuir os pesos, execute `python main.py treinar` no ambiente virtual. Depois `python main.py avaliar`, `python main.py comparar` e `python main.py gerar` (use o executável do ambiente virtual). `--quantidade 10` reduz os pedidos de avaliação; `--sem-parquet` permite gerar apenas JSONL para diagnóstico. Não use dataset reduzido para a avaliação final.
-
-## Dados e 5 Vs
-Volume: 1500 exemplos, 150 mil células; velocidade: geração em lote; variedade: JSONL e metadados Parquet; veracidade: validação estrutural e deduplicação antes do split; valor: treinamento e avaliação de geração incremental. Não é processamento distribuído nem streaming. O manifesto registra contagens e hashes. O teste anterior já foi consultado na v0.2, portanto não é um conjunto totalmente inédito para decisões futuras. DVC e MLflow entram na próxima versão.
+docker compose build
+docker compose up -d mlflow
+docker compose run --rm projeto python main.py dados
+docker compose run --rm projeto python main.py gerar --entrada 2 --quantidade 3 --sem-janela
+```
+Veja reports/geracao.png. MLflow: http://localhost:5000.
+DVC: execute na raiz do repositório existente.
+```
+docker compose run --rm projeto dvc init
+docker compose run --rm projeto dvc repro dados
+docker compose run --rm projeto dvc repro
+docker compose run --rm projeto python main.py avaliar --quantidade 100
+docker compose run --rm projeto python main.py comparar --quantidade 50
+```
+Se Git rejeitar a propriedade do diretório no container, execute `git config --global --add safe.directory /app` no mesmo container usando `sh -c` antes de dvc (ou inicialize com dvc local).
+DVC guarda cache local; não há remote configurado. Não use dvc push sem configurar remote.
+Treino usa três taxas de aprendizado, validação completa, patience 2 avaliações consecutivas sem melhora, seleção pela menor perda de validação. O teste anterior já foi consultado, portanto não é um teste cego novo.

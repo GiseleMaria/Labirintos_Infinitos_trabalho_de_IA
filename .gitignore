@@ -24,3 +24,8 @@ perfect_mazes.jsonl
 data/raw/
 data/processed/
 data/curated/
+mlflow-data/
+mlruns/
+mlartifacts/
+mlflow.db
+models/backup_v04.pt

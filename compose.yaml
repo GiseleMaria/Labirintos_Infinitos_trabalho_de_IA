@@ -1,0 +1,30 @@
+services:
+  mlflow:
+    build: .
+    command:
+      - mlflow
+      - server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "5000"
+      - --backend-store-uri
+      - sqlite:////tracking/mlflow.db
+      - --artifacts-destination
+      - /tracking/artifacts
+      - --serve-artifacts
+      - --allowed-hosts
+      - "localhost:5000,127.0.0.1:5000,mlflow:5000"
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - ./mlflow-data:/tracking
+
+  projeto:
+    build: .
+    working_dir: /app
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MPLBACKEND: Agg
+    volumes:
+      - .:/app

@@ -1,0 +1,31 @@
+stages:
+  dados:
+    cmd: python main.py dados
+    deps:
+      - main.py
+      - src/dataset.py
+      - src/maze.py
+      - src/tokenizer.py
+    outs:
+      - data/raw
+      - data/processed
+      - data/curated
+    metrics:
+      - data/manifest.json:
+          cache: false
+  experimentos:
+    cmd: python main.py treinar --experimentos
+    deps:
+      - main.py
+      - src/train.py
+      - src/model.py
+      - src/dataset.py
+      - data/curated
+    outs:
+      - models/best.pt
+      - models/experimento_0.001.pt
+      - models/experimento_0.0003.pt
+      - models/experimento_0.0001.pt
+    metrics:
+      - reports/experimentos.json:
+          cache: false

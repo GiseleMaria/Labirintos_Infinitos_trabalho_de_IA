@@ -218,7 +218,7 @@ def avaliar(model, quantidade=100):
     )
     plt.title("Validade dos labirintos gerados")
     plt.ylabel("Quantidade")
-    plt.savefig(f"reports/grafico_{plt.gcf().number}.png"); plt.close()
+    plt.savefig("reports/validade.png"); plt.close()
 
 
     if not validos.empty:
@@ -232,7 +232,7 @@ def avaliar(model, quantidade=100):
         plt.xlabel("Teste")
         plt.ylabel("Tentativas")
         plt.grid(alpha=0.3)
-        plt.savefig(f"reports/grafico_{plt.gcf().number}.png"); plt.close()
+        plt.savefig("reports/tentativas.png"); plt.close()
 
 
     plt.figure(figsize=(10, 4))
@@ -245,7 +245,7 @@ def avaliar(model, quantidade=100):
     plt.xlabel("Teste")
     plt.ylabel("Segundos")
     plt.grid(alpha=0.3)
-    plt.savefig(f"reports/grafico_{plt.gcf().number}.png"); plt.close()
+    plt.savefig("reports/tempo.png"); plt.close()
 
 
     plt.figure(figsize=(6, 4))
@@ -255,7 +255,7 @@ def avaliar(model, quantidade=100):
     )
     plt.title("Diversidade dos chunks")
     plt.ylabel("Quantidade")
-    plt.savefig(f"reports/grafico_{plt.gcf().number}.png"); plt.close()
+    plt.savefig("reports/diversidade.png"); plt.close()
 
 
     quantidade_visualizar = min(7, len(chunks_teste))

@@ -1,0 +1,94 @@
+schema: '2.0'
+stages:
+  dados:
+    cmd: python main.py dados
+    deps:
+    - path: main.py
+      hash: md5
+      md5: 7c35349e1500c253a0cb007279dedcf3
+      size: 2798
+      isexec: true
+    - path: src/dataset.py
+      hash: md5
+      md5: 3aff1216949c01edd5e38b023bdc622f
+      size: 2611
+      isexec: true
+    - path: src/maze.py
+      hash: md5
+      md5: 971e21a56a7b709712df81c49708ac17
+      size: 3279
+      isexec: true
+    - path: src/tokenizer.py
+      hash: md5
+      md5: 55e65e14fa05621c1760278f416e975c
+      size: 155
+      isexec: true
+    outs:
+    - path: data/curated
+      hash: md5
+      md5: 0cc3efbde5f463d40bc86685e1e153fe.dir
+      size: 1339583
+      nfiles: 4
+    - path: data/manifest.json
+      hash: md5
+      md5: e759445323977f8ca85afcc11dde43d1
+      size: 811
+    - path: data/processed
+      hash: md5
+      md5: 74926a4f39a36ce862e9915b6490dcdd.dir
+      size: 700114
+      nfiles: 1
+    - path: data/raw
+      hash: md5
+      md5: 0b19b1a575b721222182a669b613698b.dir
+      size: 578614
+      nfiles: 1
+  experimentos:
+    cmd: python main.py treinar --experimentos
+    deps:
+    - path: data/curated
+      hash: md5
+      md5: 0cc3efbde5f463d40bc86685e1e153fe.dir
+      size: 1339583
+      nfiles: 4
+    - path: main.py
+      hash: md5
+      md5: 7c35349e1500c253a0cb007279dedcf3
+      size: 2798
+      isexec: true
+    - path: src/dataset.py
+      hash: md5
+      md5: 3aff1216949c01edd5e38b023bdc622f
+      size: 2611
+      isexec: true
+    - path: src/model.py
+      hash: md5
+      md5: 2b536751c0b3e56467210885f959cda4
+      size: 2707
+      isexec: true
+    - path: src/train.py
+      hash: md5
+      md5: 40a65d238b033570622c3c960893e10d
+      size: 4127
+      isexec: true
+    outs:
+    - path: models/best.pt
+      hash: md5
+      md5: 3c921b097b1af8711c1b85a85b2bb6ba
+      size: 990645
+    - path: models/experimento_0.0001.pt
+      hash: md5
+      md5: 3c642a840a16c4080e4ed848b25c003b
+      size: 990709
+    - path: models/experimento_0.0003.pt
+      hash: md5
+      md5: c20d774f30c044b8440a8cf422e71afa
+      size: 990709
+    - path: models/experimento_0.001.pt
+      hash: md5
+      md5: 3c921b097b1af8711c1b85a85b2bb6ba
+      size: 990645
+    - path: reports/experimentos.json
+      hash: md5
+      md5: 1988d71565f777618098d1f9cfbe9c97
+      size: 502

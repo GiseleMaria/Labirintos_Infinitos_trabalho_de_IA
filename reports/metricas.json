@@ -6,14 +6,14 @@
     "chunks_unicos": 100,
     "diversidade": 100.0,
     "media_tentativas": 1.0,
-    "tempo_medio_segundos": 0.1394857200072147,
-    "tempo_total_segundos": 13.961011199979112,
+    "tempo_medio_segundos": 0.12435903048000001,
+    "tempo_total_segundos": 12.442751326999769,
     "conexoes_corretas": 99,
     "total_conexoes": 99,
     "avaliacao_modelo": {
-        "test_loss": 0.8093345133463542,
-        "perplexidade": 2.2464125315706127,
-        "accuracy_percentual": 65.06,
+        "test_loss": 0.8062135986328125,
+        "perplexidade": 2.2394125984269952,
+        "accuracy_percentual": 64.84666666666666,
         "labirintos_avaliados": 150,
         "tokens_avaliados": 15000
     }

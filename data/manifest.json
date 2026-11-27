@@ -18,10 +18,10 @@
   "tokens_por_chunk": 101,
   "parquet": true,
   "sha256": {
-    "data\\curated\\test.jsonl": "e48f9260c2a0b8dc051c5d3d5656a04ea92893bc070f910be3b9d3bfb39e9e4c",
-    "data\\curated\\train.jsonl": "feebd701cf159c6573d9c2a1164acf813fed449f32fb9cf76376db26b1f62046",
-    "data\\curated\\val.jsonl": "0c53ed52bea4287220695220d2dd7dbbefffba245d97abe62857f6213db3aa78",
-    "data\\processed\\mazes.jsonl": "af8554b15fcba5e26c41808571339a2851861ab08beb5acfaed3c81a988fef09",
-    "data\\raw\\mazes.jsonl": "bfd2c18f5b7b774041758776e4d0e3f7a7e4c7eba5dedfda401ce6dea85b2d78"
+    "data/curated/test.jsonl": "f96311bb84f176b68ee332d3c50d1c19ea5cbcde4fb8d0591987fd7081211831",
+    "data/curated/train.jsonl": "5daa350bc2b630a9111d114b274fa4cb0b235ef76dfaf16662785c118c01bc2d",
+    "data/curated/val.jsonl": "07b3be30245f72f84e94c00b7ba828fc2c89ed2602a695a7ba459cd7c1781b1f",
+    "data/processed/mazes.jsonl": "46c3782a0f9df9bc5350ab627b754a9a8314ed18a36f6b7bd2c2d4fb0f4311a6",
+    "data/raw/mazes.jsonl": "4bdf422a626a9121d18128c7093719095a71cc71125414c30aca7238d7d73db8"
   }
 }

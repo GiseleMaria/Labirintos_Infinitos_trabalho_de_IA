@@ -1,0 +1,12 @@
+.git
+.venv
+venv
+data
+models
+reports
+mlruns
+mlflow-data
+.dvc
+__pycache__
+*.pt
+*.zip

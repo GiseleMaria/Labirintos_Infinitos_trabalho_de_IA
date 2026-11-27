@@ -6,7 +6,7 @@ from .tokenizer import chunk_to_seq
 
 def salvar(path, registros):
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open('w', encoding='utf8') as f:
+    with path.open('w', encoding='utf8', newline='\n') as f:
         for item in registros: f.write(json.dumps(item)+'\n')
 
 def ler(path):
@@ -42,7 +42,7 @@ def pipeline(total=1500, seed=42, parquet=True):
         import pandas as pd
         pd.DataFrame(metadados).to_parquet(base/'curated/metadata.parquet', index=False)
     manifest = dict(origem='Sintetico - DFS proprio', seed=seed, grade=[10,10], raw=len(raw), processed=len(processed), invalidos=invalidos, duplicados=duplicados, splits={k:len(v) for k,v in splits.items()}, vocabulario=26, tokens_por_chunk=101, parquet=parquet)
-    manifest['sha256'] = {str(f):hashlib.sha256(f.read_bytes()).hexdigest() for f in sorted(base.glob('*/*.jsonl'))}
+    manifest['sha256'] = {f.as_posix():hashlib.sha256(f.read_bytes()).hexdigest() for f in sorted(base.glob('*/*.jsonl'))}
     (base/'manifest.json').write_text(json.dumps(manifest,indent=2),encoding='utf8')
     print(json.dumps(manifest,indent=2))
     return manifest

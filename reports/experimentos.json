@@ -1,0 +1,24 @@
+{
+  "runs": [
+    {
+      "lr": 0.001,
+      "best_val": 0.8042226643880208,
+      "checkpoint": "models/experimento_0.001.pt"
+    },
+    {
+      "lr": 0.0003,
+      "best_val": 0.8404735107421875,
+      "checkpoint": "models/experimento_0.0003.pt"
+    },
+    {
+      "lr": 0.0001,
+      "best_val": 1.2871113606770834,
+      "checkpoint": "models/experimento_0.0001.pt"
+    }
+  ],
+  "melhor": {
+    "lr": 0.001,
+    "best_val": 0.8042226643880208,
+    "checkpoint": "models/experimento_0.001.pt"
+  }
+}
