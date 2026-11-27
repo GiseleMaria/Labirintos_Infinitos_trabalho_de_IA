@@ -1,30 +1,38 @@
 services:
+  projeto:
+    build: .
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MPLBACKEND: Agg
   mlflow:
     build: .
-    command:
-      - mlflow
-      - server
-      - --host
-      - "0.0.0.0"
-      - --port
-      - "5000"
-      - --backend-store-uri
-      - sqlite:////tracking/mlflow.db
-      - --artifacts-destination
-      - /tracking/artifacts
-      - --serve-artifacts
-      - --allowed-hosts
-      - "localhost:5000,127.0.0.1:5000,mlflow:5000"
+    command: ["mlflow", "server", "--host", "0.0.0.0", "--port", "5000", "--backend-store-uri", "sqlite:////tracking/mlflow.db", "--artifacts-destination", "/tracking/artifacts", "--serve-artifacts", "--allowed-hosts", "localhost:5000,127.0.0.1:5000,mlflow:5000"]
     ports:
       - "127.0.0.1:5000:5000"
     volumes:
       - ./mlflow-data:/tracking
-
-  projeto:
+  api:
     build: .
-    working_dir: /app
+    command: ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000"]
     environment:
-      MLFLOW_TRACKING_URI: http://mlflow:5000
-      MPLBACKEND: Agg
+      OMP_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+    ports:
+      - "127.0.0.1:8000:8000"
     volumes:
       - .:/app
+  interface:
+    build: .
+    command: ["python", "-m", "streamlit", "run", "interface/app.py", "--server.address=0.0.0.0", "--server.headless=true"]
+    environment:
+      API_URL: http://api:8000
+      PYTHONPATH: /app
+    ports:
+      - "127.0.0.1:8501:8501"
+    volumes:
+      - .:/app
+    depends_on:
+      - api
